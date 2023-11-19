@@ -52,8 +52,21 @@ def nms(dets, scores, thresh):
 def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=None, agnostic=False, multi_label=False,
                         labels=(), max_det=300):
 
-    nc = prediction.shape[2] - 5  # number of classes
-    xc = prediction[..., 4] > conf_thres  # candidates
+    nc = prediction.shape[1] - 4  # number of classes
+    bs = prediction.shape[0]  # batch size
+    nm = prediction.shape[1] - nc - 4
+    mi = 4 + nc  # mask start index
+
+    print(f'mi :  {[mi]}')
+
+    xc = np.amax(prediction[:, 4:mi], 1) > conf_thres  # candidates
+    print(f'xc SHAPE:  {[xc.shape]}')
+    #  xc = prediction[..., 4] > conf_thres  # candidates
+
+    print(f'prediction SHAPE:  {[prediction.shape]}')
+
+    prediction = prediction.transpose(0,2,1)  # shape(1,84,6300) to shape(1,6300,84)
+    print(f'prediction SHAPE:  {[prediction.shape]}')
 
     # Checks
     assert 0 <= conf_thres <= 1, f'Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0'
@@ -77,10 +90,10 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
         # Cat apriori labels if autolabelling
         if labels and len(labels[xi]):
             l = labels[xi]
-            v = np.zeros((len(l), nc + 5))
+            v = np.zeros((len(l), nc + 4))
             v[:, :4] = l[:, 1:5]  # box
             v[:, 4] = 1.0  # conf
-            v[range(len(l)), l[:, 0].long() + 5] = 1.0  # cls
+            v[range(len(l)), l[:, 0].long() + 4] = 1.0  # cls
             x = np.concatenate((x, v), 0)
 
         # If none remain process next image
@@ -88,7 +101,7 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
             continue
 
         # Compute conf
-        x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf
+        # x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf
 
         # Box (center x, center y, width, height) to (x1, y1, x2, y2)
         box = xywh2xyxy(x[:, :4])
@@ -98,8 +111,8 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
             i, j = (x[:, 5:] > conf_thres).nonzero(as_tuple=False).T
             x = np.concatenate((box[i], x[i, j + 5, None], j[:, None].astype(float)), axis=1)
         else:  # best class only
-            conf = np.amax(x[:, 5:], axis=1, keepdims=True)
-            j = np.argmax(x[:, 5:], axis=1).reshape(conf.shape)
+            conf = np.amax(x[:, 4:], axis=1, keepdims=True)
+            j = np.argmax(x[:, 4:], axis=1).reshape(conf.shape)
             x = np.concatenate((box, conf, j.astype(float)), axis=1)[conf.flatten() > conf_thres]
             
         # Filter by class

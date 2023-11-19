@@ -155,7 +155,7 @@ class EdgeTPUModel:
 
         # Scale input, conversion is: real = (int_8 - zero)*scale
         x = (x/self.input_scale) + self.input_zero
-        x = x[np.newaxis].astype(np.uint8)
+        x = x[np.newaxis].astype(np.int8)
         
         self.interpreter.set_tensor(self.input_details[0]['index'], x)
         self.interpreter.invoke()
@@ -261,10 +261,12 @@ class EdgeTPUModel:
                     output[base]['cls_name'] = self.names[c]
                     
             if save_txt:
-                output_txt = base+"txt"
+                output_txt = base+".txt"
                 with open(output_txt, 'w') as f:
                    json.dump(output, f, indent=1)
             if save_img:
               cv2.imwrite(output_path, output_image)
+              cv2.imshow("Gooo!", output_image)
+              # cv2.waitKey(0)
             
         return det
